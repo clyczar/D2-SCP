@@ -1812,3 +1812,212 @@ button.preset {
   padding: 0.5rem 1.5rem;
   font-size: 1rem;
 }
+
+/* Stats page */
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.75rem;
+  margin-block: 0.75rem;
+}
+
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--sunken);
+}
+
+.stat-label {
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  color: var(--text-strong);
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-detail {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.chart {
+  position: relative;
+  margin-top: 0.5rem;
+}
+
+.chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  touch-action: pan-y;
+}
+
+.chart-grid line {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.chart-grid text,
+.chart-tick {
+  fill: var(--muted);
+}
+
+.chart-axis-label {
+  fill: var(--muted);
+  font-size: 12px;
+}
+
+.chart-band {
+  fill: var(--success);
+  opacity: 0.08;
+}
+
+.chart-zero {
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+
+.chart-fit {
+  stroke: var(--red-bright);
+  stroke-width: 2;
+}
+
+.chart-trend {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.chart-mark {
+  stroke: var(--panel);
+  stroke-width: 2;
+}
+
+.chart-mark.point {
+  fill: var(--text);
+}
+
+.chart-mark.miss {
+  fill: var(--panel);
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+
+.chart-mark.hit {
+  fill: var(--success);
+}
+
+.chart-bar {
+  fill: var(--muted);
+}
+
+.chart-bar.emphasis {
+  fill: var(--success);
+}
+
+.chart-cursor {
+  fill: none;
+  stroke: var(--text-strong);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.chart-tip {
+  position: absolute;
+  z-index: 2;
+  max-width: 18rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background: var(--sunken);
+  color: var(--text);
+  font-size: 0.8rem;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 12px));
+}
+
+.chart-empty {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+}
+
+.chart-legend {
+  display: flex;
+  gap: 1rem;
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.legend-hit::first-letter {
+  color: var(--success);
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-table th,
+.stats-table td {
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.stats-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.stats-table tr.excluded td {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.log-run select {
+  margin-inline: 0.25rem;
+}
+
+/* Live page */
+.live-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: end;
+  margin-block: 0.75rem;
+}
+
+.live-video {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--line);
+  background: var(--sunken);
+}
+
+.live-stats {
+  font-variant-numeric: tabular-nums;
+}

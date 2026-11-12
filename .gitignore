@@ -147,3 +147,6 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Frames saved by the dev-server snapshot bridge (scripts/viteBotBridge.ts)
+captures/

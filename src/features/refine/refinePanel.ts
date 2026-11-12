@@ -3,6 +3,7 @@ import type { ChestSearch } from "../../chest/chestSeedMatcher";
 import { MAX_CHEST_DRAWS, chestSeedStream, findChestDraws, type DrawHit } from "../../chest/chestStream";
 import { refineAdvice } from "../../chest/refine";
 import { routeName, routeText } from "../../chest/waypoints";
+import { runLog } from "../../stats/sharedLog";
 import { button, el } from "../../ui/dom";
 import { formatSeed, plural } from "../../ui/format";
 import { tableTag, waitText } from "../runePlanner/runePlanPanel";
@@ -54,6 +55,8 @@ export function renderRefinePanel(progress: PlayerProgress): RefinePanel {
   const streams = new Map<string, Uint16Array>();
   let selected = 0;
   let selectionKey = "";
+  let loggedChest = 1;
+  let loggedRun = "";
 
   function streamFor(seed: KnownSeed, draws: number): Uint16Array {
     const key = `${seed.gameSeed}:${seed.gameType}:${draws}`;
@@ -142,6 +145,7 @@ export function renderRefinePanel(progress: PlayerProgress): RefinePanel {
       el("ol", { className: "draw-hits" }, ...hits.slice(0, SHOWN).map((row, index) => hitRow(row, index, plan))),
       ...(hits.length > SHOWN ? [el("p", { className: "hint", textContent: `…and ${hits.length - SHOWN} more.` })] : []),
       refinement(hit, plan),
+      logRun(hit, plan, known),
     );
     const offset = hit.draw - plan.draw;
     const kind = refineAdvice(offset);
@@ -169,6 +173,52 @@ export function renderRefinePanel(progress: PlayerProgress): RefinePanel {
         },
         isSelected ? "small" : "small primary",
       ),
+    );
+  }
+
+  /** Records this chest in the run log for the Stats page, keyed to the game and plan so re-renders update it. */
+  function logRun(hit: DrawHit, plan: PickedPlan, known: KnownSeed): HTMLElement {
+    const runId = `${known.gameSeed}:${plan.draw}`;
+    if (runId !== loggedRun) {
+      loggedRun = runId;
+      loggedChest = 1;
+    }
+    const id = `${runId}#${loggedChest}`;
+    const existing = runLog.all.find((r) => r.id === id);
+    const delta = hit.draw - plan.draw;
+    if (existing?.actualDraw !== hit.draw) {
+      runLog.upsert({
+        id,
+        runId,
+        at: existing?.at ?? Date.now(),
+        source: "manual",
+        area: plan.area,
+        players: plan.players,
+        rune: plan.rune,
+        chest: loggedChest,
+        targetDraw: plan.draw,
+        actualDraw: hit.draw,
+        delta,
+        wait: plan.wait,
+        fireRate: plan.fireRate,
+        excluded: existing?.excluded ?? false,
+        note: "",
+      });
+    }
+    const chest = el("select", {}, ...[1, 2, 3, 4, 5, 6].map((n) => el("option", { value: String(n), textContent: `chest ${n}`, selected: n === loggedChest })));
+    chest.addEventListener("change", () => {
+      runLog.remove(id);
+      loggedChest = Number(chest.value);
+      render();
+    });
+    return el(
+      "p",
+      { className: "hint log-run" },
+      "Logged to ",
+      el("a", { href: "#/stats", textContent: "Stats" }),
+      " as ",
+      chest,
+      ` of this game (${delta === 0 ? "on plan" : `${delta > 0 ? "+" : ""}${delta} draws`}).`,
     );
   }
 

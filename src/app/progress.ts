@@ -379,6 +379,10 @@ export class PlayerProgress {
     return this.here.routeSamples;
   }
 
+  routeSamplesIn(area: ChestAreaId): readonly RouteSample[] {
+    return this.saved.areas[area].routeSamples;
+  }
+
   get calibrationRoute(): RouteId {
     const routes = this.calibratingRoutes;
     return routes.includes(this.here.calibrationRoute) ? this.here.calibrationRoute : routes[0];
