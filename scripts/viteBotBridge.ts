@@ -74,6 +74,26 @@ export function botBridge(dir = "captures"): Plugin {
         res.end(readFileSync(file));
       });
 
+      // Recognition training samples (src/live/samples.ts): samples/<id>.png and samples/<id>.json.
+      const samplesFolder = resolve(server.config.root, "samples");
+      server.middlewares.use("/__bot/sample", (req, res) => {
+        const query = new URL(req.url ?? "/", "http://local").searchParams;
+        const id = query.get("id") ?? "";
+        const kind = query.get("kind");
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          if (req.method !== "POST" || !/^[\w-]{1,80}$/.test(id) || (kind !== "png" && kind !== "json")) {
+            res.statusCode = 400;
+            return res.end();
+          }
+          mkdirSync(samplesFolder, { recursive: true });
+          writeFileSync(resolve(samplesFolder, `${id}.${kind}`), Buffer.concat(chunks));
+          res.statusCode = 204;
+          res.end();
+        });
+      });
+
       server.middlewares.use("/__bot/frame", (req, res) => {
         const id = new URL(req.url ?? "/", "http://local").searchParams.get("id") ?? "";
         const chunks: Buffer[] = [];

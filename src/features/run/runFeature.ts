@@ -18,6 +18,8 @@ import { loadState, searchParamsOf, type Setup } from "../seedFinder/state";
 import { renderMatchBody, type UseSeed } from "../seedFinder/matchBody";
 import { RateMeter } from "../seedFinder/rateMeter";
 import { openRefineDrops } from "../refine/refineFeature";
+import { liveFrame } from "../live/liveFeature";
+import { saveSample } from "../../live/samples";
 
 const BOARD_KEY = "d2lkscp-repeat-board";
 
@@ -40,6 +42,10 @@ interface Search {
   rate: RateMeter;
   quick: boolean;
   stoppedOnFirst: boolean;
+  /** The capture card's frame from when the search started (the gamble window was on screen), if Live was capturing. */
+  frame: Promise<Blob | null> | null;
+  capturedAt: number;
+  sampled: boolean;
 }
 
 class RunPage {
@@ -267,7 +273,7 @@ class RunPage {
       onEnd: (outcome, error) => this.ended(search, outcome, error),
     });
     const quick = this.options.quick.checked && searchedItems(board).length >= QUICK_ITEMS;
-    this.run = { search, setup, board, shown: 0, rate: new RateMeter(), quick, stoppedOnFirst: false };
+    this.run = { search, setup, board, shown: 0, rate: new RateMeter(), quick, stoppedOnFirst: false, frame: liveFrame(), capturedAt: Date.now(), sampled: false };
     this.warning.replaceChildren();
     this.matches.replaceChildren();
     this.hidePlans();
@@ -341,6 +347,7 @@ class RunPage {
       return false;
     }
     run.stoppedOnFirst = true;
+    this.sample(run, storeSeed);
     if (gameSeeds.length === 1) {
       this.progress.setKnownSeed({ gameSeed: gameSeeds[0], gameType: NORMAL_D2R_GAME.type });
       this.warning.append(
@@ -354,6 +361,18 @@ class RunPage {
     run.search.cancel();
     if (gameSeeds.length === 1) this.showPlan();
     return true;
+  }
+
+  /** Saves the search's capture-card frame as a labelled recognition sample, once per search. */
+  private sample(run: Search, storeSeed: number): void {
+    if (!run.frame || run.sampled) return;
+    run.sampled = true;
+    void saveSample(run.frame, {
+      storeSeed,
+      gameSeeds: gameSeedsFromStoreSeed(storeSeed, NORMAL_D2R_GAME.draws),
+      params: searchParamsOf({ setup: run.setup, board: run.board }),
+      capturedAt: run.capturedAt,
+    });
   }
 
   private showPlan(): void {
@@ -387,6 +406,7 @@ class RunPage {
   private renderMatch(run: Search, storeSeed: number, index: number): HTMLElement {
     const gameSeeds = gameSeedsFromStoreSeed(storeSeed, NORMAL_D2R_GAME.draws);
     const useSeed: UseSeed = (gameSeed, gameType) => {
+      this.sample(run, storeSeed);
       this.progress.setKnownSeed({ gameSeed, gameType });
       this.showPlan();
     };
@@ -416,6 +436,7 @@ class RunPage {
       : endText(outcome, search, error);
 
     const found = search.matches;
+    if (outcome === "complete" && found.length === 1) this.sample(run, found[0]);
     if (outcome === "complete" && found.length === 0) {
       this.searchBox.hidden = true;
       this.warning.replaceChildren(

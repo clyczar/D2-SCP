@@ -13,6 +13,13 @@ type TrackProcessorConstructor = new (init: { track: MediaStreamTrack }) => Trac
 
 const DEVICE_KEY = "d2scp-live-device";
 
+let currentSnapper: Snapper | null = null;
+
+/** The capture card's latest frame as a PNG, or null when the Live page isn't capturing. */
+export function liveFrame(width = 0, crop: Crop = null): Promise<Blob | null> | null {
+  return currentSnapper ? currentSnapper(width, crop) : null;
+}
+
 export const live: Feature = {
   id: "live",
   title: "Live",
@@ -75,7 +82,7 @@ export const live: Feature = {
         worker.onmessage = (event: MessageEvent<FrameWorkerResponse>) => onWorker(event.data);
         const { readable } = new Processor({ track });
         worker.postMessage({ type: "stream", readable } satisfies FrameWorkerRequest, [readable]);
-        snapper = (width, crop) =>
+        snapper = currentSnapper = (width, crop) =>
           new Promise((resolve) => {
             const id = crypto.randomUUID();
             pending.set(id, resolve);
@@ -83,7 +90,7 @@ export const live: Feature = {
           });
       } else {
         stats.textContent = "This browser can't read frames in the background (needs Chrome or Edge), so snapshots come from the visible video only.";
-        snapper = (width, crop) => snapFromVideo(video, width, crop);
+        snapper = currentSnapper = (width, crop) => snapFromVideo(video, width, crop);
       }
     }
 
@@ -105,7 +112,7 @@ export const live: Feature = {
     function stop(): void {
       worker?.terminate();
       worker = null;
-      snapper = null;
+      snapper = currentSnapper = null;
       for (const track of stream?.getTracks() ?? []) track.stop();
       stream = null;
       video.srcObject = null;
@@ -123,7 +130,9 @@ export const live: Feature = {
 
     // Dev server only: lets a Claude session ask for a frame with `curl http://127.0.0.1:5290/__bot/snap?width=640`.
     if (import.meta.hot) {
-      bridge.textContent = "Snapshot bridge on: GET /__bot/snap?width=640[&crop=x,y,w,h] saves the latest frame to captures/latest.png.";
+      bridge.textContent =
+        "While this is capturing, every seed search on the Run page saves the gamble window frame and its seed to samples/ for recognition training. " +
+        "Snapshot bridge: GET /__bot/snap?width=640[&crop=x,y,w,h] saves the latest frame to captures/latest.png.";
       import.meta.hot.on("bot:snap", async ({ id, width, crop }: { id: string; width: number; crop: string | null }) => {
         if (!snapper) return;
         const box = crop?.split(",").map(Number);

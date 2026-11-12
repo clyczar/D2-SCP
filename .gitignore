@@ -152,3 +152,5 @@ vite.config.ts.timestamp-*
 captures/
 # Disk copy of browser storage written by the dev server (src/app/diskBackup.ts)
 local-data/
+# Gamble-window recognition samples saved by the dev server (src/live/samples.ts)
+samples/
