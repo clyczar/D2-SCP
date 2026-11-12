@@ -102,8 +102,8 @@ export interface PickedPlan extends PatternTable {
   otherSeeds?: KnownSeed[];
 }
 
-export type PlanSort = "soonest" | "best";
-export const PLAN_SORTS: readonly PlanSort[] = ["soonest", "best"];
+export type PlanSort = "soonest" | "best" | "value";
+export const PLAN_SORTS: readonly PlanSort[] = ["soonest", "best", "value"];
 
 export type PlanRoute = Pick<RunePlanOptions, "distance" | "fireRate" | "mode" | "direct" | "waypointAdds">;
 export type RouteGap = "direct" | "fireRate" | "river" | "waypoints";

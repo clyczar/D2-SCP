@@ -13,7 +13,11 @@ import {
   type Rune,
   type RuneTarget,
 } from "../../chest/runePlan";
+import { chestSeedStream } from "../../chest/chestStream";
+import { errorModel, scoreTarget, SCORE_REACH, type TargetScore } from "../../chest/tolerance";
 import { RIVER_OF_FLAME, routeText, type WaypointId } from "../../chest/waypoints";
+import { summariseRuns } from "../../stats/analysis";
+import { sharedRunLog } from "../../stats/sharedLog";
 import { button, choiceTabs, el, field } from "../../ui/dom";
 import { formatDuration, formatSeed, formatWait, plural, waitTenths } from "../../ui/format";
 import { renderWaitTimer } from "./waitTimer";
@@ -43,6 +47,9 @@ interface Planned {
   targets: TableTarget[];
   gaps: { area: ChestAreaId; gap: RouteGap }[];
   routes: Map<ChestAreaId, PlanRoute>;
+  /** Expected haul of each target given where your first chests tend to land (src/chest/tolerance.ts). */
+  scores: Map<TableTarget, TargetScore>;
+  model: ReturnType<typeof errorModel> | null;
 }
 
 function planFor(progress: PlayerProgress, seed: KnownSeed, tables: Tables): Planned {
@@ -61,7 +68,14 @@ function planFor(progress: PlayerProgress, seed: KnownSeed, tables: Tables): Pla
       inputs.push({ table, patterns: tables.get(tableKey(table))!, route });
     }
   }
-  return { targets: planTables(inputs, seed, progress.pickedRunes, progress.planSort), gaps, routes };
+  const sort = progress.planSort === "best" ? "best" : "soonest";
+  const targets = planTables(inputs, seed, progress.pickedRunes, sort);
+  if (targets.length === 0) return { targets, gaps, routes, scores: new Map(), model: null };
+  const model = errorModel(summariseRuns(sharedRunLog().all).map((run) => run.first.delta!));
+  const stream = chestSeedStream(seed.gameSeed, seed.gameType, Math.max(...targets.map((t) => t.draw)) + SCORE_REACH);
+  const scores = new Map(targets.map((t) => [t, scoreTarget(stream, t.draw, t.wait, tables.get(tableKey(t))!, model)]));
+  if (progress.planSort === "value") targets.sort((a, b) => scores.get(b)!.perHour - scores.get(a)!.perHour);
+  return { targets, gaps, routes, scores, model };
 }
 
 function runePicksLink(text: string): HTMLAnchorElement {
@@ -272,7 +286,7 @@ function createPlanList(
       lastSeed = seedKey;
       showAll = false;
     }
-    const { targets, gaps, routes } = planFor(progress, seed, tables);
+    const { targets, gaps, routes, scores, model } = planFor(progress, seed, tables);
     const notes = gaps.map(({ area, gap }) => gapNote(progress, area, gap));
     if (progress.planAreas.length === 0 || progress.planPlayers.length === 0) {
       root.replaceChildren(el("p", { className: "lead", textContent: "Pick at least one area and player count above to see plans." }));
@@ -301,10 +315,11 @@ function createPlanList(
     const shown = showAll ? targets : targets.slice(0, SHOWN_PLANS);
     root.replaceChildren(
       ...notes,
+      progress.planSort === "value" && model ? valueNote(model) : "",
       el(
         "ol",
         { className: "draw-hits rune-plan" },
-        ...shown.map((target) => targetRow(target, pickButton(target, routes.get(target.area)!))),
+        ...shown.map((target) => targetRow(target, pickButton(target, routes.get(target.area)!), scores.get(target))),
       ),
       ...(targets.length > shown.length
         ? [
@@ -351,6 +366,7 @@ function createPlanList(
 const SORT_TABS: readonly { id: PlanSort; label: string }[] = [
   { id: "soonest", label: "Soonest first" },
   { id: "best", label: "Best rune first" },
+  { id: "value", label: "Best value first" },
 ];
 
 const MODE_TABS: readonly { id: RouteMode; label: string }[] = [
@@ -496,7 +512,26 @@ function runePicksText(count: number): string {
   return count === 0 ? "No runes picked, choose some" : `${plural(count, "rune")} picked, edit`;
 }
 
-function targetRow(target: TableTarget, pick: HTMLButtonElement | null): HTMLElement {
+function valueNote(model: ReturnType<typeof errorModel>): HTMLElement {
+  const basis =
+    model.samples === 0
+      ? "no logged runs yet, so assuming first chests land within about ±7 draws"
+      : `${plural(model.samples, "logged run")}: first chests land ${model.mean <= 0 ? "" : "+"}${model.mean.toFixed(1)} draws on average, ±${model.sd.toFixed(1)}`;
+  return el(
+    "p",
+    { className: "hint" },
+    "Ranked by expected Ber-equivalents per hour (2 Sur = 1 Ber, and so on down to Pul), across all 6 chests of the run, from ",
+    el("a", { href: "#/stats", textContent: basis }),
+    ". A target with good runes on nearby draws scores well even when you miss it by a few.",
+  );
+}
+
+function scoreText(score: TargetScore): string {
+  const ber = score.expected >= 0.1 ? score.expected.toFixed(2) : score.expected.toFixed(3);
+  return `Expect ≈${ber} Ber · ${Math.round(score.onTarget * 100)}% on the draw · ${score.perHour.toFixed(2)} Ber/h`;
+}
+
+function targetRow(target: TableTarget, pick: HTMLButtonElement | null, score?: TargetScore): HTMLElement {
   const others = [...target.runes.always, ...target.runes.ifLocked.map((rune) => `${rune} (if locked)`)];
   others.splice(others.indexOf(target.needsLock ? `${target.rune} (if locked)` : target.rune), 1);
   const rune = el("span", { className: "chest-item", textContent: `${target.rune} Rune` });
@@ -511,6 +546,7 @@ function targetRow(target: TableTarget, pick: HTMLButtonElement | null): HTMLEle
     routeTag(target),
     el("span", { className: "muted" }, `Draw ${target.draw}, chest seed `, el("code", { textContent: String(target.seed) })),
     others.length > 0 && el("span", { className: "muted", textContent: `Also ${others.join(", ")}` }),
+    score ? el("span", { className: "plan-score", textContent: scoreText(score), title: "Over all 6 chests of the run, given where your first chests tend to land" }) : false,
     pick ?? false,
   );
 }

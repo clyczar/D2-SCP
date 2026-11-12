@@ -23,6 +23,12 @@
   - `SeedSearch` 在浏览器支持 WebGPU 时自动用 GPU，否则退回 CPU worker。`backend` 字段记录实际用的是哪个。
   - `gpu-bench.html`：先和 CPU 匹配器逐个比对结果，再测一遍完整 2^32 的搜索速度。
 - 实测完整搜一遍 2^32：iPhone 15 Pro 1084M/s（4 秒）；Intel Xe-LPG 核显 2185M/s（2 秒）。两边结果和 CPU 完全一致。RTX 5070 还没测过。
+- 2026-11-12 在公司电脑上先做好的、不需要硬件的部分：
+  - **Stats 页面**（`#/stats`）：偏差散点图、最近 N 局命中率和误差趋势、偏差分布、用等待时间拟合 fire rate。数据来自 `src/stats/runLog.ts`，可以导入用户手记的 opening history 格式。Refine 页面查出抽取次数后会自动记一笔。
+  - **Live 页面**（`#/live`）：显示采集卡画面，在 Worker 里用 `MediaStreamTrackProcessor` 读帧，标签页切到后台也不停。用电脑摄像头测过，正常。
+  - **截图接口**（`scripts/viteBotBridge.ts`，只在 dev server 上有）：请求 `GET /__bot/snap?width=640&crop=x,y,w,h`，会把 Live 页面的最新一帧存到 `captures/latest.png`。
+  - **硬盘备份**：dev server 上，进度和运行记录会自动备份到 `local-data/*.json`。浏览器存储为空时会从这里恢复，所以换电脑时把这个文件夹拷过去就行。
+  - **"Best value first" 排序**（`src/chest/tolerance.ts`）：按用户自己的落点误差分布，算出 6 个箱子期望能拿到多少 Ber 当量、每小时多少。每个箱子间隔 4 次抽取，上锁概率 21%，每局额外耗时 100 秒。
 - `vite.config.ts` 把 dev server 固定在 **5290** 端口，preview 在 5291，都开了 `strictPort`，避免和用户工作用的 5173 冲突。以后向原作者提 PR 时，不要带上这个端口改动。
 
 ## 3. 数据分析结论

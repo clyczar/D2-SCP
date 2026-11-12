@@ -2021,3 +2021,9 @@ button.preset {
 .live-stats {
   font-variant-numeric: tabular-nums;
 }
+
+.plan-score {
+  color: var(--text);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
