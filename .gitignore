@@ -149,8 +149,8 @@ vite.config.ts.timestamp-*
 .turbo
 
 # Frames saved by the dev-server snapshot bridge (scripts/viteBotBridge.ts)
-captures/
+/captures/
 # Disk copy of browser storage written by the dev server (src/app/diskBackup.ts)
-local-data/
+/local-data/
 # Gamble-window recognition samples saved by the dev server (src/live/samples.ts)
-samples/
+/samples/
