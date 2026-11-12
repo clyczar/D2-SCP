@@ -1,3 +1,4 @@
+import { activeProfile, profileFileSuffix, profileKey } from "./profiles";
 import type { PlayerProgress } from "./progress";
 import type { RunLog } from "../stats/runLog";
 
@@ -7,10 +8,25 @@ const PROGRESS_KEY = "d2lkscp-progress";
 const RUN_LOG_KEY = "d2scp-run-log";
 const SAVE_DELAY_MS = 2000;
 
+/** Storage key and backup file name of each mirrored item, for a profile. */
+function items(profile = activeProfile()): [key: string, name: string][] {
+  const suffix = profileFileSuffix(profile);
+  return [
+    [profileKey(PROGRESS_KEY, profile), `progress${suffix}`],
+    [profileKey(RUN_LOG_KEY, profile), `run-log${suffix}`],
+  ];
+}
+
+/** Deletes a profile's backup files, so clearing its data isn't undone by the next restore. */
+export async function deleteDiskBackup(profile: string): Promise<void> {
+  if (!import.meta.hot) return;
+  await Promise.all(items(profile).map(([, name]) => fetch(`/__bot/save?name=${name}`, { method: "DELETE" }).catch(() => {})));
+}
+
 /** Before the app loads: fill empty browser storage from the disk copy, if there is one. */
 export async function restoreFromDisk(): Promise<void> {
   if (!import.meta.hot) return;
-  for (const [key, name] of [[PROGRESS_KEY, "progress"], [RUN_LOG_KEY, "run-log"]] as const) {
+  for (const [key, name] of items()) {
     try {
       if (localStorage.getItem(key) !== null) continue;
       const response = await fetch(`/__bot/load?name=${name}`);
@@ -27,7 +43,7 @@ export function backUpToDisk(progress: PlayerProgress, runLog: RunLog): void {
   const save = () => {
     clearTimeout(timer);
     timer = setTimeout(() => {
-      for (const [key, name] of [[PROGRESS_KEY, "progress"], [RUN_LOG_KEY, "run-log"]] as const) {
+      for (const [key, name] of items()) {
         let body: string | null = null;
         try {
           body = localStorage.getItem(key);

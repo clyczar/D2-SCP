@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
 
@@ -8,7 +8,7 @@ const ANSWER_MS = 5000;
  * Dev-server-only endpoints so a Claude session can see the capture card:
  * GET /__bot/snap?width=640&crop=x,y,w,h asks the open Live page for its latest frame,
  * which it POSTs back to /__bot/frame; the frame lands in captures/latest.png.
- * POST /__bot/save and GET /__bot/load?name=… keep a disk copy of browser storage in local-data/.
+ * POST|DELETE /__bot/save and GET /__bot/load?name=… keep a disk copy of browser storage in local-data/.
  */
 export function botBridge(dir = "captures"): Plugin {
   return {
@@ -48,6 +48,11 @@ export function botBridge(dir = "captures"): Plugin {
         const chunks: Buffer[] = [];
         req.on("data", (chunk: Buffer) => chunks.push(chunk));
         req.on("end", () => {
+          if (file && req.method === "DELETE") {
+            rmSync(file, { force: true });
+            res.statusCode = 204;
+            return res.end();
+          }
           if (!file || req.method !== "POST") {
             res.statusCode = 400;
             return res.end();
