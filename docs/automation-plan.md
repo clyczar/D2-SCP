@@ -121,5 +121,13 @@
 - 角色是 Softcore 还是 Hardcore？
 - A1 营地里谁卖钥匙？一组钥匙最多叠几把？
 - Pul 以上的符文合成，离线模式能不能用？
-- Pokémon Automation 的 ESP32 固件用什么串口协议、许可证是什么？能不能从 Web Serial 直接驱动？还是要用他们的 ComputerControl 程序？
+- ~~Pokémon Automation 的 ESP32 固件用什么串口协议？~~ 2026-11-12 查过：
+  - 协议叫 **PABotBase2**。源码在 `PokemonAutomation/Arduino-Source`（**MIT 许可证**），可以移植成 TypeScript，用 Web Serial 直接驱动。固件的二进制文件从 `PokemonAutomation/ComputerControl` 的 releases 下载，文件名是 `PABotBase2-ESP32-<版本>.bin`。这个仓库没有写许可证，个人使用没问题。旧协议 PABotBase1 已经不兼容。
+  - 协议分三层：
+    - **Packet 层**：每个包有 magic `0x81`、seqnum、长度、opcode，带校验和重传。`Common/PABotBase2/ReliableConnectionLayer/` 一共大约 1700 行 C++，参考 `PABotBase2CC_ReliableStreamConnection.cpp`、`PacketParser`、`PacketSender`、`StreamCoalescer`。
+    - **Message 层**：`PABotBase2_MessageProtocol.h`，消息头是 u16 长度 + opcode + id。用到的 opcode：`0x20/0x21` 查协议版本和固件版本，`0x24` 查控制器列表，`0x32/0x33` 读取和切换控制器模式，`0x43` 表示指令执行完了。
+    - **手柄指令**：`0x90 PABB2_MESSAGE_CMD_NS_WIRED_CONTROLLER_STATE`，内容是 u16 毫秒数 + 7 字节手柄状态（buttons0、buttons1、dpad、左摇杆 x/y、右摇杆 x/y，见 `Common/ControllerStates/NintendoSwitch_WiredController_State.h`）。上位机那边的写法参考 `SerialPrograms/Source/NintendoSwitch/Controllers/PABotBase2/NintendoSwitch_PABotBase2_WiredController.cpp`。
+  - 协议版本号（目前是 packet `2026061800`、message `2026061806`）会随固件更新而变。**选定一个固件版本后，按那个版本对应的源码来移植**，以后不要随便升级固件。
+  - 固件开机默认是 "NS1: Wired Pro Controller"。NS2 可能要先用 `0x33` 切到 NS2 有线手柄模式，要实测确认。
+  - **建议顺序**：先只用官方的 ComputerControl 程序确认 NS2 能认出 ESP32，并且能手动按键，不写任何代码；确认没问题后，再移植 packet、message 和 0x90 指令这几部分。
 - NS2 上 ESP32 有线手柄的稳定性如何，摇杆灵敏度怎么设？
