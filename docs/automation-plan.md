@@ -28,6 +28,7 @@
   - **Live 页面**（`#/live`）：显示采集卡画面，在 Worker 里用 `MediaStreamTrackProcessor` 读帧，标签页切到后台也不停。用电脑摄像头测过，正常。
   - **截图接口**（`scripts/viteBotBridge.ts`，只在 dev server 上有）：请求 `GET /__bot/snap?width=640&crop=x,y,w,h`，会把 Live 页面的最新一帧存到 `captures/latest.png`。
   - **硬盘备份**：dev server 上，进度和运行记录会自动备份到 `local-data/*.json`。浏览器存储为空时会从这里恢复，所以换电脑时把这个文件夹拷过去就行。
+  - **自动收集识别样本**（`src/live/samples.ts`）：Live 页面开着时，Run 页面每次开始搜种子都会先截一帧（这时赌博窗口还在屏幕上）；搜出商店种子后，把图片和种子一起存到 `samples/<时间>-<storeSeed>.png/.json`。用 `generateWindow(Rng.fromSeed(storeSeed), charLevel, gamblePool(...))` 就能还原 14 件物品和它们的格子，等于每张图都自动标注好了，可以直接拿来做图标模板。下一步就是用这些样本做识别。
   - **"Best value first" 排序**（`src/chest/tolerance.ts`）：按用户自己的落点误差分布，算出 6 个箱子期望能拿到多少 Ber 当量、每小时多少。每个箱子间隔 4 次抽取，上锁概率 21%，每局额外耗时 100 秒。
 - `vite.config.ts` 把 dev server 固定在 **5290** 端口，preview 在 5291，都开了 `strictPort`，避免和用户工作用的 5173 冲突。以后向原作者提 PR 时，不要带上这个端口改动。
 
