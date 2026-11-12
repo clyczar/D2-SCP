@@ -3,7 +3,7 @@ import type { ChestSearch } from "../../chest/chestSeedMatcher";
 import { MAX_CHEST_DRAWS, chestSeedStream, findChestDraws, type DrawHit } from "../../chest/chestStream";
 import { refineAdvice } from "../../chest/refine";
 import { routeName, routeText } from "../../chest/waypoints";
-import { runLog } from "../../stats/sharedLog";
+import { sharedRunLog } from "../../stats/sharedLog";
 import { button, el } from "../../ui/dom";
 import { formatSeed, plural } from "../../ui/format";
 import { tableTag, waitText } from "../runePlanner/runePlanPanel";
@@ -184,10 +184,10 @@ export function renderRefinePanel(progress: PlayerProgress): RefinePanel {
       loggedChest = 1;
     }
     const id = `${runId}#${loggedChest}`;
-    const existing = runLog.all.find((r) => r.id === id);
+    const existing = sharedRunLog().all.find((r) => r.id === id);
     const delta = hit.draw - plan.draw;
     if (existing?.actualDraw !== hit.draw) {
-      runLog.upsert({
+      sharedRunLog().upsert({
         id,
         runId,
         at: existing?.at ?? Date.now(),
@@ -207,7 +207,7 @@ export function renderRefinePanel(progress: PlayerProgress): RefinePanel {
     }
     const chest = el("select", {}, ...[1, 2, 3, 4, 5, 6].map((n) => el("option", { value: String(n), textContent: `chest ${n}`, selected: n === loggedChest })));
     chest.addEventListener("change", () => {
-      runLog.remove(id);
+      sharedRunLog().remove(id);
       loggedChest = Number(chest.value);
       render();
     });

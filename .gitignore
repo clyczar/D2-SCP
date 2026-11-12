@@ -150,3 +150,5 @@ vite.config.ts.timestamp-*
 
 # Frames saved by the dev-server snapshot bridge (scripts/viteBotBridge.ts)
 captures/
+# Disk copy of browser storage written by the dev server (src/app/diskBackup.ts)
+local-data/

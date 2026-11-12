@@ -4,7 +4,7 @@ import { chestArea, CHEST_AREAS } from "../../chest/areas";
 import { routeName, type RouteSample } from "../../chest/waypoints";
 import { histogram, linearFit, mean, rolling, standardDeviation, summariseRuns, type RunSummary } from "../../stats/analysis";
 import { parseRunLogFile, type RunRecord } from "../../stats/runLog";
-import { runLog } from "../../stats/sharedLog";
+import { sharedRunLog } from "../../stats/sharedLog";
 import { barChart, scatterChart } from "../../ui/charts";
 import { button, choiceTabs, el, field } from "../../ui/dom";
 import { plural } from "../../ui/format";
@@ -90,7 +90,7 @@ function recordsTable(records: readonly RunRecord[]): HTMLElement {
   if (records.length === 0) return el("p", { className: "chart-empty", textContent: "No runs logged yet." });
   const rows = [...records].reverse().map((r) => {
     const exclude = el("input", { type: "checkbox", checked: r.excluded, title: "Leave this chest out of every chart" });
-    exclude.addEventListener("change", () => runLog.setExcluded(r.id, exclude.checked));
+    exclude.addEventListener("change", () => sharedRunLog().setExcluded(r.id, exclude.checked));
     return el(
       "tr",
       { className: r.excluded ? "excluded" : "" },
@@ -102,7 +102,7 @@ function recordsTable(records: readonly RunRecord[]): HTMLElement {
       el("td", { textContent: r.delta === null ? "–" : signed(r.delta, 0) }),
       el("td", { textContent: r.wait === null ? "–" : `${Math.round(r.wait)} s` }),
       el("td", {}, el("label", { className: "check" }, exclude, "Exclude")),
-      el("td", {}, button("Delete", () => runLog.remove(r.id), "small")),
+      el("td", {}, button("Delete", () => sharedRunLog().remove(r.id), "small")),
     );
   });
   return el(
@@ -129,12 +129,12 @@ function fileControls(): HTMLElement {
       status.textContent = "That file isn't a run log or an opening history export.";
       return;
     }
-    const added = runLog.merge(records);
+    const added = sharedRunLog().merge(records);
     status.textContent = `Imported ${plural(records.length, "chest")}, ${added} new.`;
   });
   const exportLog = button("Export runs", () => {
     const link = el("a", {
-      href: URL.createObjectURL(new Blob([runLog.exportJson()], { type: "application/json" })),
+      href: URL.createObjectURL(new Blob([sharedRunLog().exportJson()], { type: "application/json" })),
       download: `d2scp-run-log-${new Date().toISOString().slice(0, 10)}.json`,
     });
     link.click();
@@ -153,7 +153,7 @@ export const stats: Feature = {
     const body = el("div", { className: "page" });
 
     function render(): void {
-      const records = runLog.all;
+      const records = sharedRunLog().all;
       const runs = summariseRuns(records);
       const deltas = runs.map((r) => r.first.delta!);
       const hits = runs.filter((r) => r.hit).length;
@@ -248,7 +248,7 @@ export const stats: Feature = {
       );
     }
 
-    runLog.subscribe(render);
+    sharedRunLog().subscribe(render);
     progress.subscribe(render);
     render();
     return { root: body, onShow: render };
