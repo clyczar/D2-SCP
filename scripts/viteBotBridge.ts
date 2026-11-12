@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
 
@@ -80,15 +80,62 @@ export function botBridge(dir = "captures"): Plugin {
         const query = new URL(req.url ?? "/", "http://local").searchParams;
         const id = query.get("id") ?? "";
         const kind = query.get("kind");
+        const valid = /^[\w-]{1,80}$/.test(id) && (kind === "png" || kind === "json");
+        const file = resolve(samplesFolder, `${id}.${kind}`);
+        if (req.method === "GET") {
+          if (!valid || !existsSync(file)) {
+            res.statusCode = 404;
+            return res.end();
+          }
+          res.setHeader("content-type", kind === "png" ? "image/png" : "application/json");
+          return res.end(readFileSync(file));
+        }
         const chunks: Buffer[] = [];
         req.on("data", (chunk: Buffer) => chunks.push(chunk));
         req.on("end", () => {
-          if (req.method !== "POST" || !/^[\w-]{1,80}$/.test(id) || (kind !== "png" && kind !== "json")) {
+          if (req.method !== "POST" || !valid) {
             res.statusCode = 400;
             return res.end();
           }
           mkdirSync(samplesFolder, { recursive: true });
-          writeFileSync(resolve(samplesFolder, `${id}.${kind}`), Buffer.concat(chunks));
+          writeFileSync(file, Buffer.concat(chunks));
+          res.statusCode = 204;
+          res.end();
+        });
+      });
+      server.middlewares.use("/__bot/sample-list", (_req, res) => {
+        const ids = existsSync(samplesFolder)
+          ? readdirSync(samplesFolder).filter((f) => f.endsWith(".json")).map((f) => f.slice(0, -5)).sort()
+          : [];
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify(ids));
+      });
+
+      // Recognition templates that ship with the app: src/data/templates/<name>.png|json.
+      const templatesFolder = resolve(server.config.root, "src/data/templates");
+      server.middlewares.use("/__bot/template", (req, res) => {
+        const query = new URL(req.url ?? "/", "http://local").searchParams;
+        const name = query.get("name") ?? "";
+        const kind = query.get("kind");
+        const valid = /^[\w-]{1,40}$/.test(name) && (kind === "png" || kind === "json");
+        const file = resolve(templatesFolder, `${name}.${kind}`);
+        if (req.method === "GET") {
+          if (!valid || !existsSync(file)) {
+            res.statusCode = 404;
+            return res.end();
+          }
+          res.setHeader("content-type", kind === "png" ? "image/png" : "application/json");
+          return res.end(readFileSync(file));
+        }
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          if (req.method !== "POST" || !valid) {
+            res.statusCode = 400;
+            return res.end();
+          }
+          mkdirSync(templatesFolder, { recursive: true });
+          writeFileSync(file, Buffer.concat(chunks));
           res.statusCode = 204;
           res.end();
         });
