@@ -114,6 +114,7 @@ export function renderRunePlanPanel(progress: PlayerProgress): HTMLElement {
   }
 
   progress.subscribe(render);
+  sharedRunLog().subscribe(render);
   render();
   loadAllTables().then(
     (loaded) => {
@@ -162,6 +163,7 @@ export function renderSeedPlans(progress: PlayerProgress, seeds: readonly KnownS
   }
 
   progress.subscribe(render);
+  sharedRunLog().subscribe(render);
   loadAllTables().then(
     (loaded) => {
       tables = loaded;
